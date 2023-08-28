@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Todo App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            background-image: url('assests/back.png');
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-size: 100% 100%;   
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        input[type="text"], textarea {
+            flex: 1;
+            padding: 10px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            background-color: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Todo App</h1>
+        <form id="addTaskForm">
+            <input type="text" id="title" placeholder="Title" required>
+            <textarea id="description" placeholder="Description" required></textarea>
+            <button type="submit">Add Task</button>
+        </form>
+        <ul id="taskList"></ul>
+    </div>
+
+    
+
+    <script>
+    const taskList = document.getElementById("taskList");
+
+    function fetchTasks() {
+        fetch("api.php")
+            .then(response => response.json())
+            .then(data => {
+                taskList.innerHTML = "";
+                data.forEach(task => {
+                    renderTask(task);
+                });
+            });
+    }
+
+    function renderTask(task) {
+        const li = document.createElement("li");
+        li.setAttribute("data-id", task.id); 
+
+        li.innerHTML = `
+            Title: <strong>${task.title}</strong><br>
+            Description:${task.description}<br>
+            Completed: ${task.completed}<br>
+            <button onclick="deleteTask(${task.id})">Delete</button>
+            <button onclick="showUpdateForm(${task.id}, '${task.title}', '${task.description}', ${task.completed})">Update</button>
+        `;
+        taskList.appendChild(li);
+    }
+
+    const openUpdateForm={};
+    function showUpdateForm(id, currentTitle, currentDescription, currentCompleted) {
+        if (openUpdateForm[id]) {
+            return; // Return early if an update form is already open for this task
+        }
+        console.log("showUpdateForm called with ID:", id);
+        const existingLi = document.querySelector(`li[data-id="${id}"]`);
+        if (existingLi) {
+            console.log("Existing LI found:", existingLi);
+            const updateForm = document.createElement("form");
+            updateForm.innerHTML = `
+                <input type="text" id="updateTitle" value="${currentTitle}" required>
+                <textarea id="updateDescription" required>${currentDescription}</textarea>
+                <label>
+                    Completed:
+                    <input type="checkbox" id="updateCompleted" ${currentCompleted ? 'checked' : ''}>
+                </label>
+                <button type="button" onclick="submitUpdate(${id})">Update</button>
+            `;
+
+            existingLi.appendChild(updateForm);
+            openUpdateForm[id] = true; // Set the flag to indicate an open form
+
+        } else {
+            console.log("Existing LI not found for ID:", id);
+        }
+    }
+
+
+    function submitUpdate(id) {
+        const updatedTitle = document.getElementById("updateTitle").value;
+        const updatedDescription = document.getElementById("updateDescription").value;
+        const updatedCompleted = document.getElementById("updateCompleted").checked;
+
+        updateTask(id, updatedTitle, updatedDescription, updatedCompleted);
+
+        // Clean up the update form
+        const existingLi = document.querySelector(`li[data-id="${id}"]`);
+        existingLi.removeChild(existingLi.querySelector("form"));
+        openUpdateForm[id] = false; // Reset the flag when the form is closed
+
+    }
+
+    function addTask(event) {
+        event.preventDefault();
+        const title = document.getElementById("title").value;
+        const description = document.getElementById("description").value;
+
+        fetch("api.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ title, description }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            fetchTasks();
+        });
+    }
+
+    function deleteTask(id) {
+        fetch("api.php", {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: `id=${id}`,
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            fetchTasks();
+        });
+    }
+
+    function updateTask(id, title, description, completed) {
+        fetch("api.php", {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ id, title, description, completed }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            fetchTasks();
+        });
+    }
+
+    document.getElementById("addTaskForm").addEventListener("submit", addTask);
+    fetchTasks();
+</script>
+</body>
+</html>
